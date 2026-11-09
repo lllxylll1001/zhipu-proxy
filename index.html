@@ -1,0 +1,1023 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>精读助手 Pro · 终极全集版</title>
+  <style>
+    :root { --reading-font-size: 19px; }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      margin: 0; padding: 16px; background: #f5f5f7; color: #1d1d1f;
+      max-width: 720px; margin-left: auto; margin-right: auto; padding-bottom: 80px;
+    }
+    
+    h1 { font-size: 20px; font-weight: 600; margin: 0 0 4px; }
+    .sub { font-size: 13px; color: #86868b; margin-bottom: 16px; }
+
+    /* 顶部双模式通知 */
+    #friendNotification {
+      position: fixed; top: -120px; left: 50%; transform: translateX(-50%);
+      width: 90%; max-width: 400px; background: #fff;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.12); border-radius: 12px;
+      padding: 14px 16px; z-index: 9999; display: flex; flex-direction: column; gap: 4px;
+      transition: top 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); cursor: pointer;
+      border-left: 4px solid #34c759;
+    }
+    #friendNotification.show { top: 20px; }
+    #friendNotification.care-mode { background: #f0f8ff; border-left-color: #0071e3; }
+    #friendNotification.care-mode .msg-title { display: none; }
+    #friendNotification.care-mode .msg-desc { font-size: 15px; font-weight: bold; color: #005bb5; }
+    #friendNotification .msg-title { font-size: 13px; font-weight: bold; margin-bottom: 2px; color: #34c759; }
+    #friendNotification .msg-desc { font-size: 14px; color: #333; line-height: 1.4; word-break: break-all; }
+
+    /* 首页面板 */
+    .panel { background: #fff; border-radius: 14px; padding: 16px; margin-top: 14px; box-shadow: 0 1px 3px rgba(0,0,0,.04); }
+    .panel h3 { margin: 0 0 10px 0; font-size: 15px; color: #333; border-bottom: 1px solid #eee; padding-bottom: 6px; }
+    .panel label { font-size: 13px; font-weight: 500; color: #3a3a3c; display: block; margin-bottom: 6px; }
+    input[type="text"], input[type="password"] {
+      width: 100%; padding: 10px 12px; border: 1px solid #d2d2d7; border-radius: 10px;
+      font-size: 15px; margin-bottom: 10px; background: #fafafa; font-family: inherit;
+    }
+    .row { display: flex; gap: 10px; margin-top: 10px; }
+    .row > * { flex: 1; }
+
+    /* 按钮 */
+    button {
+      padding: 12px 16px; border: none; border-radius: 10px; font-size: 15px; font-weight: 600;
+      cursor: pointer; transition: all 0.2s; font-family: inherit; text-align: center;
+    }
+    button:active { opacity: .7; transform: scale(0.98); }
+    .btn-primary { background: #0071e3; color: #fff; }
+    .btn-secondary { background: #e8e8ed; color: #1d1d1f; }
+    .btn-success { background: #34c759; color: #fff; }
+    .btn-warning { background: #ff9500; color: #fff; }
+    .btn-danger { background: #ff3b30; color: #fff; }
+    .btn-regenerate { background: linear-gradient(135deg, #8e2de2, #4a00e0); color: #fff; }
+
+    /* 拖拽区 */
+    .drop-zone-container { position: relative; overflow: hidden; border-radius: 14px; margin-bottom: 14px; }
+    #dropZone { display: block; border: 2px dashed #c7c7cc; border-radius: 14px; padding: 28px 16px; text-align: center; background: #fff; cursor: pointer; }
+    #fileInput { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; z-index: 10; font-size: 100px; }
+    #fileInfo { font-size: 14px; display: none; text-align: center; color: #0071e3; margin-bottom: 14px; }
+
+    /* 列表 */
+    .list-item { display: flex; justify-content: space-between; align-items: center; background: #f9f9f9; padding: 10px; border-radius: 8px; margin-bottom: 6px; font-size: 13px; border: 1px solid #eee; }
+    .list-item .item-text { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .list-item button { padding: 4px 8px; font-size: 12px; border-radius: 4px; }
+
+    /* 状态栏 */
+    #status {
+      position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
+      background: rgba(0,0,0,.85); color: #fff; padding: 12px 20px; border-radius: 20px;
+      font-size: 13px; z-index: 2001; display: none; flex-direction: column; align-items: center; min-width: 200px;
+    }
+    #progressTrack { width: 100%; height: 6px; background: rgba(255,255,255,.2); border-radius: 3px; overflow: hidden; display: none; margin-top: 8px; }
+    #progressFill { width: 0%; height: 100%; background: #34c759; transition: width .3s; }
+
+    /* 沉浸阅读区 */
+    #readingMode { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: #fdfbf7; background-size: cover; background-position: center; z-index: 1000; display: none; flex-direction: column; }
+    #readingHeader { background: rgba(255,255,255,0.95); padding: 10px 16px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #e5e5ea; z-index: 1002; }
+    #readingHeader .title { font-size: 15px; font-weight: 600; flex: 1; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin: 0 10px; }
+    #readingContent { flex: 1; overflow-y: auto; padding: 16px 20px 120px; max-width: 800px; margin: 0 auto; width: 100%; }
+
+    .engine-status { padding: 8px; border-radius: 8px; font-size: 13px; font-weight: bold; margin-bottom: 16px; text-align: center; }
+    .engine-status.cloud { background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
+    .engine-status.local { background: #ffebee; color: #c62828; border: 1px solid #ef9a9a; }
+
+    /* 原图对照 */
+    .pdf-image-wrapper { margin-bottom: 24px; background: #fff; border-radius: 10px; overflow: hidden; border: 1px solid #e5e5ea; }
+    .pdf-image-toggle { background: #f0f0f5; text-align: center; padding: 10px; font-size: 13px; color: #0071e3; cursor: pointer; font-weight: bold; }
+    .pdf-image-container { display: none; padding: 8px; background: #fff; }
+    .pdf-image-container canvas { width: 100%; height: auto; display: block; border-radius: 4px; }
+
+    .paragraph-block {
+      background: rgba(255,255,255,0.95); border-radius: 10px; padding: 20px; margin-bottom: 20px;
+      font-size: var(--reading-font-size); line-height: 1.8; color: #1d1d1f; outline: none;
+    }
+    .paragraph-block:focus { box-shadow: 0 0 0 2px #0071e3; }
+    .trans-eng { color: #0071e3; font-weight: bold; margin-bottom: 4px; font-size: 16px;}
+    .trans-cn { color: #333; margin-bottom: 16px; font-size: 18px;}
+
+    .table-responsive { width: 100%; overflow-x: auto; background: rgba(255,255,255,0.95); border-radius: 10px; padding: 16px; margin-bottom: 20px; }
+    .web-table { width: 100%; border-collapse: collapse; font-size: calc(var(--reading-font-size) - 2px); line-height: 1.6; }
+    .web-table td, .web-table th { border: 1px solid #e5e5ea; padding: 10px; text-align: left; vertical-align: top; outline: none; }
+    .web-table td:focus { box-shadow: inset 0 0 0 2px #0071e3; }
+
+    /* 选中朗读浮动按钮 */
+    #speakSelectionBtn { display: none; position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); z-index: 2005; background: #0071e3; color: #fff; padding: 12px 24px; border-radius: 30px; box-shadow: 0 4px 12px rgba(0,0,0,.3); font-size: 16px; font-weight: bold; border: none; cursor: pointer; }
+
+    /* 底部按钮栏 */
+    #readingFooter { position: absolute; bottom: 0; left: 0; width: 100%; background: #fff; padding: 10px 16px; display: flex; gap: 10px; border-top: 1px solid #e5e5ea; z-index: 1001; }
+    #btnSettings { flex: 1; }
+    #btnPlayPause { flex: 1; }
+    #btnRegenerate { flex: 0 0 100px; font-size: 13px; padding: 8px; }
+    #btnExportMenu { flex: 0 0 60px; padding: 8px; }
+
+    /* 排版设置面板 */
+    #ttsPanel { display: none; position: absolute; bottom: 65px; left: 0; width: 100%; background: #fff; padding: 16px; z-index: 1003; max-height: 75vh; overflow-y: auto; border-top: 1px solid #eee; }
+    .editor-section { border: 1px solid #e5e5ea; border-radius: 10px; padding: 16px; background: #fafafa; margin-bottom: 15px; }
+    .editor-section h4 { margin: 0 0 12px 0; font-size: 14px; color: #0071e3; }
+    .format-btns { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .format-btns button, .format-btns input[type="color"] { padding: 6px 10px; font-size: 12px; background: #fff; border: 1px solid #ccc; color: #333; border-radius: 6px; cursor: pointer;}
+    .format-btns input[type="color"] { padding: 0; width: 32px; height: 28px; }
+
+    .control-group { display: flex; align-items: center; margin-bottom: 12px; }
+    .control-group label { width: 70px; font-size: 13px; color: #333; flex-shrink: 0; }
+    .control-group input[type="range"] { flex: 1; margin: 0 10px; accent-color: #0071e3; }
+    .control-group input[type="file"] { flex: 1; font-size: 12px; }
+    .control-group span { width: 40px; text-align: right; font-size: 13px; color: #0071e3; font-weight: bold; }
+
+    /* 🎯 朗读专属面板 */
+    #readerPanel { display: none; position: absolute; bottom: 65px; left: 0; width: 100%; background: #fff; padding: 16px; z-index: 1003; max-height: 75vh; overflow-y: auto; border-top: 1px solid #eee; }
+    #readerPanel select { width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc; margin-bottom: 10px; font-family: inherit; }
+
+    /* 导出菜单 */
+    #exportMenu { display: none; position: absolute; bottom: 65px; right: 16px; background: #fff; box-shadow: 0 4px 15px rgba(0,0,0,0.15); border-radius: 10px; overflow: hidden; z-index: 1004; flex-direction: column; }
+    #exportMenu button { padding: 12px 20px; background: transparent; border-radius: 0; border-bottom: 1px solid #eee; font-size: 14px; text-align: left; color: #333; font-weight: 500;}
+    #exportMenu button:last-child { border-bottom: none; }
+
+    /* 🎯 可拖动小助手 */
+    #pixelPet { position: fixed; right: 20px; bottom: 100px; z-index: 9999; cursor: pointer; display: flex; flex-direction: column; align-items: center; user-select: none; touch-action: none; }
+    #petImg { width: 72px; height: 72px; object-fit: contain; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2)); pointer-events: none; }
+    #petBubble { font-size: 13px; background: #fff; border: 1px solid #ccc; padding: 6px 12px; border-radius: 8px; margin-bottom: 8px; font-weight: bold; opacity: 0; transition: opacity .3s; pointer-events: none; position: relative; }
+    #petBubble::after { content: ''; position: absolute; bottom: -6px; right: 20px; border-width: 6px 6px 0; border-style: solid; border-color: #ccc transparent transparent transparent; }
+    .show-bubble #petBubble { opacity: 1; }
+    
+    .pet-idle { animation: pet-breathe 2s infinite alternate; }
+    .pet-work { animation: pet-shake .15s infinite; }
+    .pet-success { animation: pet-success .4s 3 ease-in-out; }
+    @keyframes pet-breathe { from { transform: scale(1); } to { transform: scale(1.05); } }
+    @keyframes pet-shake { 0% { transform: translate(1px,1px); } 100% { transform: translate(-1px,-1px); } }
+    @keyframes pet-success { 0% { transform: translateY(0); } 50% { transform: translateY(-15px); } 100% { transform: translateY(0); } }
+
+    /* 弹窗 */
+    #notebookModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,.6); z-index: 3000; justify-content: center; align-items: center; }
+    .notebook-content { background: #fff; width: 90%; max-width: 500px; max-height: 80vh; border-radius: 14px; display: flex; flex-direction: column; overflow: hidden; }
+    .notebook-header { padding: 16px; background: #0071e3; color: #fff; display: flex; justify-content: space-between; align-items: center; font-weight: bold; }
+    .notebook-list { padding: 16px; overflow-y: auto; flex: 1; }
+    .dict-item { padding: 10px; border-bottom: 1px solid #eee; font-size: 15px; }
+  </style>
+</head>
+<body>
+
+  <div id="friendNotification" onclick="this.classList.remove('show')">
+    <div class="msg-title" id="friendMsgTitle">系统通知</div>
+    <div class="msg-desc" id="friendMsgDesc"></div>
+  </div>
+
+  <h1>精读助手 Pro</h1>
+  <div class="sub">推荐使用系统自带浏览器（Safari/Chrome）以获得最佳性能</div>
+
+  <div class="drop-zone-container">
+    <div id="dropZone">
+      <div class="hint" style="font-size:16px; font-weight:bold; color:#333;">点击或拖拽文档</div>
+      <div class="hint" style="font-size:12px; color:#888; margin-top:4px;">支持 PDF / DOCX / TXT / 中英翻译</div>
+    </div>
+    <input type="file" id="fileInput" accept=".pdf,.docx,.txt">
+  </div>
+  <div id="fileInfo"></div>
+
+  <div class="panel" id="controlPanel" style="display:none;">
+    <label>页码范围 (留空=前3页，例: 1-5 或 1,3)</label>
+    <input type="text" id="pageRange" placeholder="例如：1-3">
+    <div class="row" style="margin-top:0;">
+      <button class="btn-primary" id="btnEnterRead" style="flex:2;">进入沉浸阅读</button>
+    </div>
+    <div class="row">
+      <button class="btn-warning" id="btnTranslate" style="flex:1;">一键转中英对照</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <label>大模型 API Key (强烈建议填写，翻译优先用AI秒出)</label>
+    <input type="password" id="apiKey" placeholder="粘贴智谱 API Key">
+    <button class="btn-secondary" id="btnTestAI" style="width:100%; margin-bottom:10px;">测试代理连接</button>
+  </div>
+
+  <div class="panel">
+    <h3>我的备忘录</h3>
+    <div class="row" style="margin-bottom:10px;">
+      <input type="text" id="memoInput" placeholder="记点什么..." style="margin-bottom:0;">
+      <button class="btn-primary" onclick="addMemo()" style="flex:0 0 60px;">添加</button>
+    </div>
+    <div id="homeMemoList"></div>
+  </div>
+
+  <div class="panel">
+    <h3>曾经生成的内容</h3>
+    <div id="historyList" style="max-height: 200px; overflow-y: auto;">
+      <p style="text-align:center; color:#999; font-size:13px;">暂无记录</p>
+    </div>
+    <button class="btn-secondary" id="btnViewNotebook" style="width:100%; margin-top:10px;">查看本地医学常用语</button>
+  </div>
+
+  <div id="status">
+    <div id="statusText">加载中...</div>
+    <div id="progressTrack"><div id="progressFill"></div></div>
+  </div>
+
+  <!-- 选中朗读浮动按钮 -->
+  <button id="speakSelectionBtn">🔊 朗读选中</button>
+
+  <div id="readingMode">
+    <div id="readingHeader">
+      <button class="btn-secondary" id="btnExitRead" style="padding: 8px 12px;">返回</button>
+      <div class="title" id="readingTitle">阅读中</div>
+      <div style="width:60px;"></div>
+    </div>
+    
+    <div id="readingContent"></div>
+    
+    <div id="readingFooter">
+      <button class="btn-secondary" id="btnSettings">设置</button>
+      <button class="btn-primary" id="btnPlayPause">▶ 全文朗读</button>
+      <button class="btn-regenerate" id="btnRegenerate">重写选中</button>
+      <button class="btn-success" id="btnExportMenu">导出</button>
+    </div>
+
+    <div id="exportMenu">
+      <button onclick="exportWord()">导出为 Word</button>
+      <button onclick="exportPDF()">导出为 PDF</button>
+      <button onclick="copyText()">复制为纯文本</button>
+    </div>
+
+    <div id="ttsPanel">
+      <div class="editor-section">
+        <h4>排版工具栏 (选中文字后点击)</h4>
+        <div class="format-btns">
+          <button onmousedown="event.preventDefault()" onclick="document.execCommand('bold')"><b>B</b> 加粗</button>
+          <button onmousedown="event.preventDefault()" onclick="document.execCommand('italic')"><i>I</i> 斜体</button>
+          <button onmousedown="event.preventDefault()" onclick="document.execCommand('underline')"><u>U</u> 下划线</button>
+          <button onmousedown="event.preventDefault()" onclick="toggleWavy()">〰️ 波浪线</button>
+          <button onmousedown="event.preventDefault()" onclick="document.execCommand('foreColor', false, '#ff3b30')" style="color:#ff3b30;">红字</button>
+          <input type="color" oninput="document.execCommand('foreColor', false, this.value)" title="自定义颜色">
+          <button onmousedown="event.preventDefault()" onclick="document.execCommand('hiliteColor', false, '#ffff00')" style="background:#ffff00;">荧光笔</button>
+          <button onmousedown="event.preventDefault()" onclick="document.execCommand('justifyCenter')">居中</button>
+          <button onmousedown="event.preventDefault()" onclick="document.execCommand('removeFormat')">清空格式</button>
+        </div>
+      </div>
+      
+      <div class="editor-section">
+        <h4>系统与外观设置</h4>
+        <div class="control-group">
+          <label>🎨 背景图</label>
+          <input type="file" id="bgImageInput" accept="image/*">
+          <button class="btn-secondary" id="btnClearBg" style="padding:6px 10px; font-size:12px; width:auto; margin-left:5px;">恢复默认</button>
+        </div>
+        <div class="control-group">
+          <label>全局字号</label>
+          <input type="range" id="fontSizeControl" min="14" max="32" step="1" value="19">
+          <span id="fontSizeValue">19px</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 🎯 找回的朗读专属面板 -->
+    <div id="readerPanel">
+      <div class="editor-section">
+        <h4>朗读专属设置</h4>
+        <div class="control-group">
+          <label>声线选择</label>
+          <select id="voiceControl">
+            <option value="">自动（默认普通话）</option>
+            <option value="zh-CN-XiaoxiaoNeural">晓晓（女声自然）</option>
+            <option value="zh-CN-YunxiNeural">云希（男声自然）</option>
+          </select>
+        </div>
+        <div class="control-group">
+          <label>朗读语速</label>
+          <input type="range" id="rateControl" min="0.5" max="2.0" step="0.1" value="1.0">
+          <span id="rateValue">1.0x</span>
+        </div>
+        <div class="control-group">
+          <label>朗读音量</label>
+          <input type="range" id="volControl" min="0" max="1.0" step="0.1" value="1.0">
+          <span id="volValue">100%</span>
+        </div>
+        <div class="control-group">
+          <label>断句停顿</label>
+          <input type="range" id="pauseControl" min="0" max="3000" step="100" value="500">
+          <span id="pauseValue">0.5s</span>
+        </div>
+        <button class="btn-primary" onclick="startFullReading()" style="width:100%; margin-top:10px;">开始从头朗读</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="notebookModal">
+    <div class="notebook-content">
+      <div class="notebook-header">
+        <span>本地医学常用语</span>
+        <button style="background:none; border:none; color:#fff; font-size:18px;" onclick="document.getElementById('notebookModal').style.display='none'">关闭</button>
+      </div>
+      <div class="notebook-list" id="notebookList"></div>
+    </div>
+  </div>
+
+  <div id="pixelPet" class="pet-idle">
+    <div id="petBubble">准备就绪</div>
+    <img id="petImg" src="./pet.png" alt="助手" onerror="this.src='https://api.dicebear.com/7.x/bottts/svg?seed=Felix'">
+  </div>
+
+  <script src="https://unpkg.com/pdfjs-dist@2.16.105/build/pdf.min.js"></script>
+  <script src="https://unpkg.com/mammoth@1.8.0/mammoth.browser.min.js"></script>
+  <script src="https://unpkg.com/tesseract.js@5.1.0/dist/tesseract.min.js"></script>
+  <script src="./medical_terms.js"></script>
+
+  <script>
+    if (typeof pdfjsLib !== 'undefined') {
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://unpkg.com/pdfjs-dist@2.16.105/build/pdf.worker.min.js';
+    }
+
+    // 🎯 已经为你改好，对接 Vercel 的 api
+    const PROXY_URL = '/api/proxy';
+
+    var $ = function(id) { return document.getElementById(id); };
+    var fileType = null, pdfDoc = null, docxPages = null;
+    var currentFileName = '', customBgBase64 = '';
+    
+    var allSentences = [], currentIndex = 0, isTtsActive = false, currentTaskId = 0;
+
+    var defaultMemos = ["记得复习心血管四联症", "今天也要把难懂的段落看懂！", "多喝温水，保护嗓子", "看完这一章就奖励自己休息一下"];
+    var historyList = JSON.parse(localStorage.getItem('history_files')) || [];
+    var memoList = JSON.parse(localStorage.getItem('memo_list')) || defaultMemos;
+    var globalCloudDict = {};
+
+    async function fetchCloudDict() {
+      try {
+        var res = await fetch('./cloud_dict.json');
+        if (res.ok) globalCloudDict = await res.json();
+      } catch(e) {}
+    }
+    
+    function getMergedDict() {
+      try {
+        var localDict = localStorage.getItem('medical_dict');
+        var parsedLocal = localDict ? JSON.parse(localDict) : {};
+        return Object.assign({}, globalCloudDict, parsedLocal);
+      } catch(e) { return globalCloudDict; }
+    }
+
+    function saveCorrection(wrong, right) {
+      try {
+        if (!wrong || !right || wrong === right || wrong.length === 0) return;
+        var localDict = localStorage.getItem('medical_dict');
+        var parsedLocal = localDict ? JSON.parse(localDict) : {};
+        parsedLocal[wrong] = right;
+        localStorage.setItem('medical_dict', JSON.stringify(parsedLocal));
+      } catch(e) {}
+    }
+
+    function levenshteinDistance(s1, s2) {
+      if (s1.length < s2.length) return levenshteinDistance(s2, s1);
+      if (s2.length === 0) return s1.length;
+      var prevRow = [];
+      for (var i = 0; i <= s2.length; i++) prevRow[i] = i;
+      for (var i = 0; i < s1.length; i++) {
+        var currRow = [i + 1];
+        for (var j = 0; j < s2.length; j++) {
+          var insertions = prevRow[j + 1] + 1;
+          var deletions = currRow[j] + 1;
+          var substitutions = prevRow[j] + (s1[i] === s2[j] ? 0 : 1);
+          currRow.push(Math.min(insertions, deletions, substitutions));
+        }
+        prevRow = currRow;
+      }
+      return prevRow[s2.length];
+    }
+
+    function correctWord(word) {
+      if (!word) return word;
+      var userDict = getMergedDict();
+      if (userDict[word]) return userDict[word];
+      var termsLib = window.MEDICAL_TERMS || [];
+      if (termsLib.includes(word)) return word;
+      
+      var bestMatch = null; var minDistance = 999;
+      termsLib.forEach(function(term) {
+        var dist = levenshteinDistance(word, term);
+        var lenDiff = Math.abs(word.length - term.length);
+        var isMatch = false;
+        if (term.length >= 6 && lenDiff <= 2 && dist <= 2) isMatch = true;
+        if (term.length >= 3 && term.length < 6 && lenDiff <= 1 && dist <= 1) isMatch = true;
+        if (term.length === 2 && lenDiff === 0 && dist === 0) isMatch = true;
+        if (isMatch && dist < minDistance) { minDistance = dist; bestMatch = term; }
+      });
+      
+      if (bestMatch) { saveCorrection(word, bestMatch); return bestMatch; }
+      return word;
+    }
+
+    function processTextWithDict(text) {
+      if (!text) return "";
+      text = text.replace(/([\u4e00-\u9fa5])\1{2,}/g, '$1'); 
+      text = text.replace(/，{2,}/g, '，').replace(/。{2,}/g, '。'); 
+      var regex = /[\u4e00-\u9fa5a-zA-Z0-9]{2,8}/g;
+      return text.replace(regex, function(match) {
+        return correctWord(match);
+      });
+    }
+
+    function reassembleWithTabs(blocks) {
+      if (!blocks || blocks.length === 0) return null;
+      var lines = [];
+      blocks.forEach(function(block) {
+        if (block.paragraphs) {
+          block.paragraphs.forEach(function(para) {
+            if (para.lines) {
+              para.lines.forEach(function(line) {
+                if (line.text.trim() !== '' && line.bbox) lines.push(line);
+              });
+            }
+          });
+        }
+      });
+      if (lines.length === 0) return null;
+      lines.sort(function(a, b) {
+        if (Math.abs(a.bbox.y0 - b.bbox.y0) < 15) return a.bbox.x0 - b.bbox.x0;
+        return a.bbox.y0 - b.bbox.y0;
+      });
+      var rows = [], currentRow = [], lastY = -1, yThreshold = 20;
+      lines.forEach(function(line) {
+        var lineY = (line.bbox.y0 + line.bbox.y1) / 2;
+        if (lastY === -1 || Math.abs(lineY - lastY) <= yThreshold) currentRow.push(line);
+        else { rows.push(currentRow); currentRow = [line]; }
+        lastY = lineY;
+      });
+      if (currentRow.length > 0) rows.push(currentRow);
+      var result = "";
+      rows.forEach(function(row) {
+        row.sort(function(a, b) { return a.bbox.x0 - b.bbox.x0; });
+        var currentLineText = "", lastX1 = -1, xThreshold = 30;
+        row.forEach(function(line) {
+          var text = processTextWithDict(line.text.trim());
+          if (lastX1 === -1) currentLineText = text;
+          else {
+            var gap = line.bbox.x0 - lastX1;
+            if (gap > xThreshold) currentLineText += "\t" + text;
+            else currentLineText += text;
+          }
+          lastX1 = line.bbox.x1;
+        });
+        if (currentLineText.trim()) result += currentLineText + "\n";
+      });
+      return result;
+    }
+
+    function cleanChineseSpaces(text) {
+      if (!text) return "";
+      text = text.replace(/([\u4e00-\u9fa5])\s+(?=[\u4e00-\u9fa5])/g, '$1');
+      text = text.replace(/([\u4e00-\u9fa5])\s+(?=[，。；！？：、])/g, '$1');
+      text = text.replace(/([，。；！？：、])\s+(?=[\u4e00-\u9fa5])/g, '$1');
+      return text;
+    }
+
+    function renderSafeHTML(text) {
+      var escaped = text.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+      escaped = escaped.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+      escaped = escaped.replace(/\[红色\]([\s\S]*?)\[\/红色\]/gi, '<span style="color:#ff3b30;font-weight:bold;">$1</span>');
+      if (escaped.indexOf('|') > -1) {
+        var lines = escaped.split('\n'); 
+        var table = '<table class="web-table" contenteditable="true">'; 
+        var hasTable = false;
+        lines.forEach(l => {
+          if (l.indexOf('|') === -1) return; 
+          if (l.match(/^[|\s-:]+$/)) return;
+          hasTable = true; table += '<tr>'; 
+          var cols = l.split('|').filter(c => c.trim() !== '');
+          cols.forEach(c => { table += '<td>' + c.trim() + '</td>'; }); 
+          table += '</tr>';
+        });
+        table += '</table>'; 
+        if(hasTable) return table;
+      }
+      return escaped;
+    }
+
+    var petEl = $('pixelPet'), petBubble = $('petBubble');
+    var careTexts = ["你今天真棒！", "你已经学了这么久了，真厉害！", "别太累了，记得活动一下脖子。", "多看书，会变聪明哦。", "最近天气变凉了，要注意保暖。", "希望今天你也能开开心心的。"];
+    var fileCareTexts = ["发来了一份文件：[F]", "刚刚传了一份笔记：[F]", "分享了一份资料：[F]", "把 [F] 放在桌面了", "刚才的 [F] 我已经看过了。", "这份 [F] 里的重点你都背会了吗？"];
+    var interactiveTexts = ["诶？你点我干嘛？", "今天精读了吗？", "我发现了一个秘密，设置里可以换背景！", "我有点困了，需要充电...", "你的笔记看起来好厉害的样子。", "快去学习，不要摸鱼哦。", "我的脑子里装满了代码...", "我是不是又变胖了？"];
+    var regenStartTexts = ["这就去重写，等我一下！", "收到，马上重新排版！"];
+    var regenSuccessTexts = ["这下这一遍怎么样？", "重新弄好啦，快看看！", "搞定！快夸我！"];
+    var regenErrorTexts = ["呜呜，对不起，是我生成得不够好...", "哎呀，好像网络出问题了..."];
+
+    function setPet(text, action = 'pet-success') {
+      petBubble.textContent = text;
+      petEl.className = 'show-bubble ' + action;
+      setTimeout(() => { petEl.className = 'show-bubble pet-idle'; }, 3500);
+    }
+
+    var isDragging = false, dragStartX = 0, dragStartY = 0, initialLeft = 0, initialTop = 0;
+    
+    function onDragStart(e) {
+      isDragging = false;
+      var clientX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
+      var clientY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
+      dragStartX = clientX; dragStartY = clientY;
+      var rect = petEl.getBoundingClientRect();
+      initialLeft = rect.left; initialTop = rect.top;
+      petEl.style.right = 'auto'; petEl.style.bottom = 'auto';
+      petEl.style.left = initialLeft + 'px'; petEl.style.top = initialTop + 'px';
+    }
+    
+    function onDragMove(e) {
+      if (dragStartX === 0 && dragStartY === 0) return;
+      var clientX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
+      var clientY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
+      if (Math.abs(clientX - dragStartX) > 5 || Math.abs(clientY - dragStartY) > 5) {
+        isDragging = true;
+        petEl.style.left = (initialLeft + clientX - dragStartX) + 'px';
+        petEl.style.top = (initialTop + clientY - dragStartY) + 'px';
+      }
+    }
+    
+    function onDragEnd(e) {
+      var dragDistance = Math.abs((e.changedTouches ? e.changedTouches[0].clientX : e.clientX) - dragStartX) + Math.abs((e.changedTouches ? e.changedTouches[0].clientY : e.clientY) - dragStartY);
+      dragStartX = 0; dragStartY = 0;
+      if (!isDragging || dragDistance < 10) {
+        setPet(interactiveTexts[Math.floor(Math.random() * interactiveTexts.length)]);
+        if(Math.random() > 0.5) {
+          showCare(careTexts[Math.floor(Math.random() * careTexts.length)]);
+        } else {
+          var f = currentFileName || "内科学心血管重点.docx";
+          showSysMsg(fileCareTexts[Math.floor(Math.random() * fileCareTexts.length)].replace('[F]', f));
+        }
+      }
+    }
+
+    petEl.addEventListener('mousedown', onDragStart);
+    document.addEventListener('mousemove', onDragMove);
+    document.addEventListener('mouseup', onDragEnd);
+    
+    petEl.addEventListener('touchstart', onDragStart, {passive: true});
+    document.addEventListener('touchmove', onDragMove, {passive: false});
+    document.addEventListener('touchend', onDragEnd);
+
+    function showSysMsg(msg) {
+      var n = $('friendNotification');
+      n.className = 'show';
+      $('friendMsgTitle').innerText = "系统通知";
+      $('friendMsgDesc').innerText = msg;
+      setTimeout(() => n.classList.remove('show'), 4500);
+    }
+
+    function showCare(msg) {
+      var n = $('friendNotification');
+      n.className = 'show care-mode';
+      $('friendMsgDesc').innerText = msg;
+      setTimeout(() => n.classList.remove('show'), 4500);
+    }
+
+    function renderMemoList() {
+      var el = $('homeMemoList');
+      el.innerHTML = '';
+      memoList.forEach((m, i) => {
+        el.innerHTML += `<div class="list-item"><span class="item-text">${m}</span><button class="btn-danger" onclick="delMemo(${i})">删</button></div>`;
+      });
+    }
+    function addMemo() {
+      var v = $('memoInput').value.trim(); if(!v) return;
+      memoList.push(v); localStorage.setItem('memo_list', JSON.stringify(memoList)); $('memoInput').value = ''; renderMemoList();
+    }
+    function delMemo(i) {
+      memoList.splice(i, 1); localStorage.setItem('memo_list', JSON.stringify(memoList)); renderMemoList();
+    }
+    function renderHistory() {
+      var el = $('historyList'); el.innerHTML = '';
+      historyList.forEach(h => { el.innerHTML += `<div class="list-item"><span class="item-text">${h}</span></div>`; });
+    }
+
+    function updateStatus(msg, showProg, pct) {
+      var s = $('status'); s.style.display = 'flex'; $('statusText').innerText = msg;
+      if(showProg) { $('progressTrack').style.display = 'block'; $('progressFill').style.width = pct + '%'; }
+      else { $('progressTrack').style.display = 'none'; }
+    }
+    function clearStatus() { $('status').style.display = 'none'; }
+
+    function parsePageRange(input, total) {
+      var t = input.trim(), pages = [];
+      if (!t) { for (var i = 1; i <= Math.min(3, total); i++) pages.push(i); return pages; }
+      t.split(/[,，]/).forEach(seg => {
+        seg = seg.trim(); var m = seg.match(/^(\d+)\s*[-–—]\s*(\d+)$/);
+        if (m) { var a = parseInt(m[1]), b = parseInt(m[2]); if (a > b) { var tmp = a; a = b; b = tmp; } for (var p = a; p <= b; p++) if (p >= 1 && p <= total) pages.push(p); }
+        else if (/^\d+$/.test(seg)) { var p = parseInt(seg); if (p >= 1 && p <= total) pages.push(p); }
+      });
+      var uniq = []; pages.sort((a, b) => a - b);
+      for (var i = 0; i < pages.length; i++) if (pages[i] !== pages[i - 1]) uniq.push(pages[i]);
+      return uniq.slice(0, 10);
+    }
+
+    $('fileInput').addEventListener('change', async e => {
+      if (!e.target.files[0]) return; 
+      var file = e.target.files[0], name = file.name.toLowerCase();
+      $('fileInfo').style.display = 'block'; $('fileInfo').innerText = '正在解析: ' + file.name; 
+      currentFileName = file.name;
+      
+      if (!historyList.includes(file.name)) {
+        historyList.unshift(file.name); 
+        if (historyList.length > 10) historyList.pop();
+        localStorage.setItem('history_files', JSON.stringify(historyList)); 
+        renderHistory();
+      }
+      
+      if (name.endsWith('.pdf')) {
+        fileType = 'pdf'; var buf = await file.arrayBuffer();
+        pdfDoc = await pdfjsLib.getDocument({ data: new Uint8Array(buf) }).promise;
+        $('fileInfo').innerText = '已加载 PDF: ' + file.name + ' (' + pdfDoc.numPages + '页)';
+      } else if (name.endsWith('.docx')) {
+        fileType = 'docx'; var buf = await file.arrayBuffer();
+        var res = await mammoth.extractRawText({ arrayBuffer: buf });
+        docxPages = [{ page: 1, text: res.value }]; 
+        $('fileInfo').innerText = '已加载 Word: ' + file.name;
+      } else if (name.endsWith('.txt')) {
+        fileType = 'txt'; var text = await file.text();
+        docxPages = [{ page: 1, text: text }]; 
+        $('fileInfo').innerText = '已加载 Text: ' + file.name;
+      }
+      $('controlPanel').style.display = 'block'; 
+      showSysMsg("文件上传成功: " + file.name);
+    });
+
+    $('btnTestAI').addEventListener('click', async () => {
+      var apiKey = $('apiKey').value.replace(/[^\x21-\x7E]/g, '').trim(); 
+      if (!apiKey) return alert('请填入 API Key');
+      updateStatus('测试 AI 代理连接中...', false);
+      try {
+        var res = await fetch(PROXY_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
+          body: JSON.stringify({ model: 'glm-4-flash', messages: [{ role: 'user', content: '你好' }] })
+        });
+        clearStatus(); 
+        if (res.ok) alert('✅ AI 代理连接成功！'); 
+        else alert('❌ 连接失败: ' + res.status);
+      } catch(e) { clearStatus(); alert('❌ 网络被拦截，请确认代理已运行。'); }
+    });
+
+    $('btnEnterRead').addEventListener('click', async () => {
+      if (!pdfDoc && !docxPages) return alert('请先上传文件');
+      $('readingMode').style.display = 'flex'; $('readingTitle').innerText = currentFileName;
+      var content = $('readingContent'); content.innerHTML = '';
+      var apiKey = $('apiKey').value.trim();
+      
+      if (fileType === 'pdf') {
+        var pages = parsePageRange($('pageRange').value, pdfDoc.numPages);
+        for (var i = 0; i < pages.length; i++) {
+          var pNum = pages[i]; updateStatus(`正在处理第 ${pNum} 页...`, false);
+          var page = await pdfDoc.getPage(pNum), v = page.getViewport({ scale: 1.5 }), c = document.createElement('canvas');
+          c.width = v.width; c.height = v.height; await page.render({ canvasContext: c.getContext('2d'), viewport: v }).promise;
+          var imgBase64 = c.toDataURL('image/jpeg', 0.8);
+          
+          var imgWrap = document.createElement('div'); imgWrap.className = 'pdf-image-wrapper';
+          var toggleBtn = document.createElement('div'); toggleBtn.className = 'pdf-image-toggle'; toggleBtn.innerText = '📷 点击查看第 ' + pNum + ' 页原图对照';
+          var imgContainer = document.createElement('div'); imgContainer.className = 'pdf-image-container'; imgContainer.appendChild(c);
+          toggleBtn.onclick = function(con) { return function() { con.style.display = con.style.display === 'block' ? 'none' : 'block'; }; }(imgContainer);
+          imgWrap.appendChild(toggleBtn); imgWrap.appendChild(imgContainer); content.appendChild(imgWrap);
+
+          var rawText = "";
+          if (apiKey) {
+            rawText = await fetchFromAI(c.toDataURL('image/jpeg', 0.6));
+            content.innerHTML += '<div class="engine-status cloud">✅ 本页由【云端视觉 AI】完成排版</div>';
+          } else { 
+            updateStatus(`本地OCR识别第 ${pNum} 页...`, true, 0); 
+            rawText = await runLocalOCR(c);
+            content.innerHTML += '<div class="engine-status local">⚠️ 本页使用【本地引擎】识别</div>';
+          }
+          
+          rawText.split(/\n\s*\n/).forEach(b => {
+            if (!b.trim()) return; 
+            var div = document.createElement('div'); div.className = 'paragraph-block'; div.setAttribute('contenteditable', 'true'); 
+            div.innerHTML = renderSafeHTML(cleanChineseSpaces(b)); 
+            content.appendChild(div);
+          });
+        }
+      } else {
+        var rawText = docxPages[0].text;
+        rawText.split(/\n\s*\n/).forEach(b => {
+          if (!b.trim()) return; 
+          var div = document.createElement('div'); div.className = 'paragraph-block'; div.setAttribute('contenteditable', 'true'); 
+          div.innerHTML = renderSafeHTML(cleanChineseSpaces(b)); 
+          content.appendChild(div);
+        });
+      }
+      clearStatus();
+    });
+
+    async function runLocalOCR(canvas) {
+      try {
+        var worker = await Tesseract.createWorker('chi_sim+eng', 1, {
+          workerPath: './worker.min.js', langPath: './', corePath: './tesseract-core-simd.wasm.js',
+          logger: m => { if (m.status === 'recognizing text') updateStatus('本地识别...', true, Math.round(m.progress * 100)); }
+        });
+        var ocr = await worker.recognize(canvas); 
+        await worker.terminate(); 
+        var text = ocr.data.blocks ? reassembleWithTabs(ocr.data.blocks) : ocr.data.text;
+        return text || "";
+      } catch(e) { return "本地OCR失败，请检查目录文件或配置API Key。"; }
+    }
+
+    async function fetchFromAI(base64Image) {
+      var apiKey = $('apiKey').value.trim();
+      var prompt = "你是一位顶级的医学文档识别专家。请将图片中的所有内容逐字提取并排版。\n【绝对规则】：\n1. 绝不能跳过任何内容！包括表格、流程图、标注、小字，必须完整输出。\n2. 表格排版：必须用 <TAB> 分隔列，用 <BR> 换行。严禁使用任何 Markdown 竖线 (|) 格式！\n3. 流程图/列表：用 --> 连接箭头。\n4. 标题和粗体：用 ** 包裹文字。\n5. 重点：用 [红色]文字[/红色] 包裹。\n6. 在末尾用 <DICT>错词|正词,错词|正词</DICT> 格式反馈你修改的字词。\n7. 严禁返回任何 Markdown 代码块标记(```)，直接输出纯文本。";
+      try {
+        var res = await fetch(PROXY_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
+          body: JSON.stringify({ model: 'glm-4v-flash', messages: [{ role: 'user', content: [{ type: 'text', text: prompt }, { type: 'image_url', image_url: { url: base64Image } }] }], max_tokens: 800 })
+        });
+        if (!res.ok) {
+            var errorText = await res.text();
+            console.error("代理错误:", errorText);
+            return "云端请求失败，状态码: " + res.status + "。详情请查看控制台。";
+        }
+        var data = await res.json();
+        var finalText = data.choices[0].message.content.replace(/```[a-z]*/gi, '').replace(/```/g, '').trim();
+        var dictMatch = finalText.match(/<DICT>([\s\S]*?)<\/DICT>/i);
+        if (dictMatch && dictMatch[1]) {
+          var pairs = dictMatch[1].split(',');
+          pairs.forEach(p => { var w = p.split('|'); if (w.length === 2) saveCorrection(w[0].trim(), w[1].trim()); });
+          finalText = finalText.replace(/<DICT>[\s\S]*?<\/DICT>/gi, '');
+        }
+        finalText = finalText.replace(/<TAB>/gi, '\t').replace(/<BR>/gi, '\n');
+        return finalText;
+      } catch(e) { 
+        console.error("真实错误详情:", e);
+        return "云端请求失败，请按F12看控制台报错。"; 
+      }
+    }
+
+    $('btnTranslate').addEventListener('click', async () => {
+      if (!pdfDoc && !docxPages) return alert('请先上传文档');
+      $('readingMode').style.display = 'flex'; $('readingTitle').innerText = '翻译: ' + currentFileName;
+      var content = $('readingContent'); content.innerHTML = '<div style="text-align:center; padding:20px;">正在提取文字...</div>';
+      var rawText = "";
+      var apiKey = $('apiKey').value.trim();
+
+      if (fileType === 'pdf') {
+        var pages = parsePageRange($('pageRange').value, pdfDoc.numPages);
+        content.innerHTML = '';
+        
+        for (var i = 0; i < pages.length; i++) {
+          var pNum = pages[i];
+          var page = await pdfDoc.getPage(pNum), v = page.getViewport({ scale: 2.0 }), c = document.createElement('canvas');
+          c.width = v.width; c.height = v.height; await page.render({ canvasContext: c.getContext('2d'), viewport: v }).promise;
+          
+          if (apiKey) {
+            updateStatus(`云端极速翻译第 ${pNum} 页...`, false);
+            try {
+              var prompt = "你是一位精通医学的翻译专家。请阅读这张图片。先精确提取英文内容，然后将其翻译成中文。严格采用逐句中英对照格式输出：\n英文原句\n中文翻译\n\n英文原句\n中文翻译\n\n不要任何废话，直接输出结果。";
+              var res = await fetch(PROXY_URL, {
+                method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
+                body: JSON.stringify({ model: 'glm-4v-flash', messages: [{ role: 'user', content: [{ type: 'text', text: prompt }, { type: 'image_url', image_url: { url: c.toDataURL('image/jpeg', 0.6) } }] }] })
+              });
+              var data = await res.json();
+              var translated = data.choices[0].message.content.replace(/```[a-z]*/gi,'').replace(/```/g,'').trim();
+              
+              translated.split(/\n\s*\n/).forEach(b => {
+                if (!b.trim()) return; 
+                var lines = b.split('\n'), en = lines[0] || "", cn = lines.slice(1).join('<br>') || "";
+                var div = document.createElement('div'); div.className = 'paragraph-block'; 
+                div.innerHTML = `<div class="trans-eng">${en}</div><div class="trans-cn">${cn}</div>`; 
+                content.appendChild(div);
+              });
+            } catch(e) { content.innerHTML += `<div style="color:red">第 ${pNum} 页翻译失败: ${e.message}</div>`; }
+          } else {
+            updateStatus(`本地提取第 ${pNum} 页...`, false);
+            var ocrText = await runLocalOCR(c);
+            var sentences = ocrText.match(/[^.!?]+[.!?]?/g) || [ocrText];
+            for (var j = 0; j < Math.min(sentences.length, 10); j++) {
+              var s = sentences[j].trim(); if (!s) continue;
+              var tr = await fetchFreeTranslate(s);
+              var div = document.createElement('div'); div.className = 'paragraph-block'; 
+              div.innerHTML = `<div class="trans-eng">${s}</div><div class="trans-cn">${tr}</div>`; 
+              content.appendChild(div);
+              await new Promise(r => setTimeout(r, 300));
+            }
+          }
+        }
+        clearStatus();
+      } else {
+        rawText = docxPages[0].text;
+        if (apiKey) {
+          updateStatus("大模型对照翻译中...", false);
+          try {
+            var prompt = "你是一位精通医学的翻译专家。请将以下内容翻译成中文，并严格采用逐句中英对照的格式（先用英文输出原句，然后换行用中文翻译，再空一行接下一句）。只输出翻译结果，不要废话。\n\n" + rawText;
+            var res = await fetch(PROXY_URL, {
+              method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
+              body: JSON.stringify({ model: 'glm-4-flash', messages: [{ role: 'user', content: prompt }] })
+            });
+            var data = await res.json(), translated = data.choices[0].message.content;
+            content.innerHTML = '';
+            translated.split(/\n\s*\n/).forEach(b => {
+              if (!b.trim()) return; 
+              var lines = b.split('\n'), en = lines[0] || "", cn = lines.slice(1).join('<br>') || "";
+              var div = document.createElement('div'); div.className = 'paragraph-block'; 
+              div.innerHTML = `<div class="trans-eng">${en}</div><div class="trans-cn">${cn}</div>`; 
+              content.appendChild(div);
+            });
+            clearStatus();
+          } catch(e) { content.innerHTML = '翻译失败：' + e.message; clearStatus(); }
+        } else {
+          updateStatus("调用免费翻译接口...", false);
+          try {
+            var sentences = rawText.match(/[^.!?]+[.!?]?/g) || [rawText]; 
+            content.innerHTML = '';
+            for (var i = 0; i < Math.min(sentences.length, 15); i++) {
+              var s = sentences[i].trim(); if (!s) continue;
+              var tr = await fetchFreeTranslate(s);
+              var div = document.createElement('div'); div.className = 'paragraph-block'; 
+              div.innerHTML = `<div class="trans-eng">${s}</div><div class="trans-cn">${tr}</div>`; 
+              content.appendChild(div);
+              await new Promise(r => setTimeout(r, 300));
+            }
+            clearStatus();
+          } catch(e) { content.innerHTML = '免费翻译失败。'; clearStatus(); }
+        }
+      }
+    });
+
+    async function fetchFreeTranslate(text) {
+      try {
+        var url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=en|zh-CN`;
+        var res = await fetch(url); var data = await res.json(); return data.responseData.translatedText || "翻译失败";
+      } catch(e) { return "网络错误"; }
+    }
+
+    $('btnRegenerate').addEventListener('click', async () => {
+      var sel = window.getSelection(), selectedText = sel.toString().trim();
+      if (!selectedText) return alert('请先选中要重写的文字');
+      var apiKey = $('apiKey').value.trim(); if (!apiKey) return alert('请先配置 API Key');
+      
+      setPet(regenStartTexts[Math.floor(Math.random() * regenStartTexts.length)], 'pet-work');
+      var targetNode = sel.anchorNode.nodeType === 3 ? sel.anchorNode.parentNode : sel.anchorNode;
+      var block = targetNode.closest('.paragraph-block, .web-table td'); if (!block) return;
+      var oldHtml = block.innerHTML; block.innerHTML = '<span style="color:#999;">AI 重写中...</span>';
+      
+      try {
+        var prompt = "重新排版以下文字，修正错别字。如果有表格必须用Markdown表格语法。禁止输出代码块，直接输出纯文本。\n" + selectedText;
+        var res = await fetch(PROXY_URL, {
+          method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
+          body: JSON.stringify({ model: 'glm-4-flash', messages: [{ role: 'user', content: prompt }] })
+        });
+        var data = await res.json();
+        var finalText = data.choices[0].message.content.replace(/```[a-z]*/gi, '').replace(/```/g, '').trim();
+        block.innerHTML = renderSafeHTML(finalText); 
+        setPet(regenSuccessTexts[Math.floor(Math.random() * regenSuccessTexts.length)], 'pet-success'); 
+        sel.removeAllRanges();
+      } catch(e) { 
+        block.innerHTML = oldHtml; 
+        setPet(regenErrorTexts[Math.floor(Math.random() * regenErrorTexts.length)], 'pet-idle'); 
+      }
+    });
+
+    function toggleWavy() {
+      var sel = window.getSelection();
+      if (!sel.rangeCount) return;
+      var range = sel.getRangeAt(0);
+      var span = document.createElement('span');
+      span.style.textDecoration = 'underline wavy red';
+      span.appendChild(range.extractContents());
+      range.insertNode(span);
+    }
+
+    function startFullReading() {
+      allSentences = [];
+      var blocks = document.querySelectorAll('.paragraph-block');
+      blocks.forEach(b => {
+        var text = b.innerText.trim();
+        var sents = text.match(/[^。；！？!?]+[。；！？!?]?/g) || [text];
+        sents.forEach(s => { if(s.trim()) allSentences.push(s.trim()); });
+      });
+      if (allSentences.length === 0) return alert('没有可朗读的内容');
+      currentIndex = 0; currentTaskId++; isTtsActive = true;
+      $('readerPanel').style.display = 'none';
+      $('btnPlayPause').innerText = '⏸ 暂停';
+      speakNext(currentTaskId);
+    }
+
+    function speakNext(myTaskId) {
+      if (!isTtsActive || myTaskId !== currentTaskId) return; 
+      if (currentIndex >= allSentences.length) { 
+        isTtsActive = false; setPet('朗读完成', 'pet-idle'); 
+        $('btnPlayPause').innerText = '▶ 全文朗读';
+        return; 
+      }
+      var text = allSentences[currentIndex];
+      var rate = parseFloat($('rateControl').value); 
+      var volume = parseFloat($('volControl').value); 
+      var pauseMs = parseInt($('pauseControl').value);
+      var u = new SpeechSynthesisUtterance(text);
+      u.lang = 'zh-CN'; u.rate = rate; u.volume = volume;   
+      
+      var voices = window.speechSynthesis.getVoices(); var bestVoice = null;
+      for (var i = 0; i < voices.length; i++) { 
+        if (voices[i].lang === 'zh-CN' || voices[i].lang === 'zh_CN') { 
+          if (voices[i].name.indexOf('Natural') > -1 || voices[i].name.indexOf('Xiaoxiao') > -1 || voices[i].name.indexOf('Online') > -1) { bestVoice = voices[i]; break; } 
+          if (!bestVoice) bestVoice = voices[i]; 
+        } 
+      }
+      if (bestVoice) u.voice = bestVoice;
+      u.onend = function() { if (isTtsActive && myTaskId === currentTaskId) { currentIndex++; if (pauseMs > 0) setTimeout(() => { if(isTtsActive && myTaskId === currentTaskId) speakNext(myTaskId); }, pauseMs); else speakNext(myTaskId); } };
+      u.onerror = function() { if (isTtsActive && myTaskId === currentTaskId) { currentIndex++; setTimeout(() => { if(isTtsActive && myTaskId === currentTaskId) speakNext(myTaskId); }, 100); } };
+      window.speechSynthesis.speak(u);
+    }
+
+    $('btnPlayPause').addEventListener('click', () => {
+      if (isTtsActive) {
+        isTtsActive = false;
+        window.speechSynthesis.cancel();
+        $('btnPlayPause').innerText = '▶ 继续朗读';
+        setPet('暂停啦', 'pet-idle');
+      } else {
+        if (allSentences.length === 0) {
+          // 如果没读过，先弹出设置面板
+          $('readerPanel').style.display = 'block';
+          $('ttsPanel').style.display = 'none';
+        } else {
+          isTtsActive = true;
+          currentTaskId++;
+          $('btnPlayPause').innerText = '⏸ 暂停';
+          speakNext(currentTaskId);
+        }
+      }
+    });
+
+    $('btnExportMenu').addEventListener('click', () => { var m = $('exportMenu'); m.style.display = m.style.display === 'flex' ? 'none' : 'flex'; });
+    $('btnSettings').addEventListener('click', () => { 
+      var p = $('ttsPanel'); p.style.display = p.style.display === 'block' ? 'none' : 'block';
+      $('readerPanel').style.display = 'none';
+    });
+    $('btnExitRead').addEventListener('click', () => { $('readingMode').style.display = 'none'; window.speechSynthesis.cancel(); });
+
+    function copyText() { navigator.clipboard.writeText($('readingContent').innerText).then(() => { alert('已复制为纯文本！'); $('exportMenu').style.display = 'none'; }); }
+    function exportPDF() { alert('请使用浏览器自带的“打印 -> 另存为PDF”功能导出。'); $('exportMenu').style.display = 'none'; window.print(); }
+    function exportWord() {
+      var html = '<html><head><meta charset="utf-8"><style>table{border-collapse:collapse;}td,th{border:1px solid #ccc;padding:8px;}</style></head><body>' + $('readingContent').innerHTML + '</body></html>';
+      var blob = new Blob(['\ufeff', html], { type: 'application/msword' });
+      var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = '导出文档.doc'; a.click(); $('exportMenu').style.display = 'none';
+    }
+
+    $('btnViewNotebook').addEventListener('click', () => {
+      $('notebookModal').style.display = 'flex';
+      var dict = getMergedDict();
+      var list = $('notebookList'); list.innerHTML = '';
+      var keys = Object.keys(dict);
+      if (keys.length === 0) list.innerHTML = '<p style="text-align:center; color:#999;">暂无记录</p>';
+      keys.forEach(k => {
+        list.innerHTML += `<div class="dict-item"><span style="color:#ff3b30; text-decoration:line-through;">${k}</span> -> <b style="color:#34c759;">${dict[k]}</b></div>`;
+      });
+    });
+
+    $('bgImageInput').addEventListener('change', function(e) {
+      var file = e.target.files[0]; if (!file) return;
+      var reader = new FileReader();
+      reader.onload = function(evt) {
+        $('readingMode').style.backgroundImage = 'url(' + evt.target.result + ')';
+      };
+      reader.readAsDataURL(file);
+    });
+    $('btnClearBg').addEventListener('click', function() {
+      $('readingMode').style.backgroundImage = 'none'; $('readingMode').style.backgroundColor = '#fdfbf7';
+    });
+    $('fontSizeControl').addEventListener('input', function() {
+      document.documentElement.style.setProperty('--reading-font-size', this.value + 'px');
+      $('fontSizeValue').innerText = this.value + 'px';
+    });
+
+    var speakBtn = $('speakSelectionBtn');
+    document.addEventListener('mouseup', handleSelection);
+    document.addEventListener('touchend', handleSelection);
+    function handleSelection() {
+      setTimeout(() => {
+        var sel = window.getSelection();
+        if (sel.toString().trim().length > 0) {
+          speakBtn.style.display = 'block';
+        } else {
+          speakBtn.style.display = 'none';
+        }
+      }, 100);
+    }
+    speakBtn.addEventListener('click', () => {
+      var text = window.getSelection().toString().trim();
+      if (!text) return;
+      speakBtn.style.display = 'none';
+      window.speechSynthesis.cancel(); 
+      isTtsActive = false;
+      $('btnPlayPause').innerText = '▶ 全文朗读';
+      
+      var u = new SpeechSynthesisUtterance(text);
+      u.lang = 'zh-CN'; 
+      u.rate = parseFloat($('rateControl').value); 
+      u.volume = parseFloat($('volControl').value);
+      window.speechSynthesis.speak(u);
+    });
+
+    fetchCloudDict();
+    renderMemoList();
+    renderHistory();
+  </script>
+</body>
+</html>
